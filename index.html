@@ -16,12 +16,14 @@
   header .sp{flex:1}
   button{font:inherit;cursor:pointer;border:1px solid var(--line);background:#fff;border-radius:8px;padding:4px 10px;color:var(--ink)}
   header button{background:#1f2937;color:#fff;border-color:#374151}
-  header button.on{background:var(--accent);border-color:var(--accent)}
+  header button.on,.seg button.on{background:var(--accent);color:#fff;border-color:var(--accent)}
   .layout{display:grid;grid-template-columns:minmax(0,1fr) 440px;gap:14px;padding:14px;align-items:start}
   @media(max-width:1080px){.layout{grid-template-columns:1fr}}
   .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-bottom:14px}
   .card h2{font-size:16px;margin:0 0 8px}
-  #toolbar{position:sticky;top:0;z-index:5;background:#fff;border:1px solid var(--line);border-radius:12px;padding:10px;margin-bottom:12px}
+  #viewbar{display:flex;flex-wrap:wrap;gap:12px;align-items:center;margin-bottom:10px}
+  .seg{display:inline-flex;gap:4px}
+  #toolbar{position:sticky;top:0;z-index:5;background:#fff;border:1px solid var(--line);border-radius:12px;padding:10px;margin-bottom:8px}
   .row{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:4px 0}
   .pbtn{display:inline-flex;align-items:center;gap:6px;font-size:14px}
   .pbtn i{width:14px;height:14px;border-radius:3px;background:var(--c);border:1px solid #0002;display:inline-block}
@@ -29,7 +31,9 @@
   .lbtn{font-size:14px}
   .lbtn b{display:inline-block;width:12px;height:12px;border-radius:2px;margin-right:4px;vertical-align:middle}
   .hint{color:var(--muted);font-size:13px}
-  #map{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:12px}
+  #hoverInfo{min-height:22px;margin:0 0 6px;font-size:14px}
+  /* มุมมองตาราง */
+  #map.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:12px}
   .region{background:#fff;border:1px solid var(--line);border-radius:12px;padding:10px}
   .region h3{margin:0 0 8px;font-size:15px}
   .region small{color:var(--muted);font-weight:400}
@@ -41,6 +45,17 @@
   .tile{width:20px;height:20px;border-radius:3px;font-size:10px;display:flex;align-items:center;justify-content:center;cursor:pointer;user-select:none;transition:transform .08s}
   .tile:hover{transform:scale(1.25);box-shadow:0 0 0 1.5px #111;position:relative;z-index:1}
   .tile.hasv{box-shadow:inset 0 -3px 0 #0005}
+  /* มุมมองแผนที่ */
+  #geoWrap{background:#f8fafc;border:1px solid var(--line);border-radius:12px;overflow:auto;padding:8px;max-height:85vh}
+  #geoWrap svg{display:block;margin:0 auto;user-select:none;touch-action:manipulation}
+  .hx{stroke:#fff;stroke-width:.07;cursor:pointer}
+  .hx:hover{stroke:#111;stroke-width:.14}
+  .pb{fill:none;stroke:#6b7280;stroke-width:.05;pointer-events:none}
+  .rb{fill:none;stroke:#111;stroke-width:.13;stroke-linecap:round;pointer-events:none}
+  .plab{font-size:.6px;font-weight:600;fill:#111;paint-order:stroke;stroke:#fff;stroke-width:.14px;stroke-linejoin:round;text-anchor:middle;pointer-events:none}
+  /* แถบรายภาค */
+  .rrow{display:grid;grid-template-columns:170px 1fr;gap:10px;align-items:center;margin:6px 0;font-size:13px}
+  .rbar{display:flex;height:18px;border-radius:4px;overflow:hidden;background:#e5e7eb}
   .barwrap{position:relative;margin:4px 0}
   #seatBar,.prog{display:flex;height:22px;border-radius:6px;overflow:hidden;background:#e5e7eb}
   .prog{position:relative}
@@ -87,8 +102,22 @@
 
 <main class="layout">
   <section>
+    <div id="viewbar">
+      <span class="seg">
+        <button data-view="geo">แผนที่ประเทศ</button>
+        <button data-view="grid">ตารางรายจังหวัด</button>
+      </span>
+      <label id="zoomBox">ขยาย <input type="range" id="zoom" min="100" max="300" step="25" style="vertical-align:middle"></label>
+      <label id="labBox"><input type="checkbox" id="labels"> แสดงชื่อจังหวัด</label>
+      <span class="hint">สีเข้ม = ชนะขาด · สีอ่อน = เอนเอียง · เทา = สูสี · ขาว = ยังไม่กำหนด</span>
+    </div>
     <div id="toolbar"></div>
+    <div id="hoverInfo" class="hint">ชี้เมาส์ที่เขตเพื่อดูรายละเอียด</div>
     <div id="map"></div>
+    <div class="card" style="margin-top:14px">
+      <h2>ที่นั่ง ส.ส. เขต รายภาค</h2>
+      <div id="regionBars"></div>
+    </div>
   </section>
 
   <aside>
@@ -137,6 +166,7 @@
 
 <footer>
   เครื่องมือนี้ใช้จำลองสถานการณ์เท่านั้น ไม่ใช่ผลโพลหรือการพยากรณ์อย่างเป็นทางการ
+  แผนที่ประเทศเป็นแผนที่หกเหลี่ยมแบบ 1 ช่องต่อ 1 เขต (ขนาดเท่ากันทุกเขต) ตำแหน่งเป็นค่าประมาณ ไม่ใช่เส้นเขตจริง
   จำนวนเขตต่อจังหวัดเป็นค่าตั้งต้น โปรดตรวจสอบกับประกาศ กกต. ล่าสุดก่อนนำไปใช้
 </footer>
 
@@ -158,8 +188,8 @@
 const CONFIG = {
   DISTRICT_SEATS: 400,
   PARTYLIST_SEATS: 100,
-  PM_MIN_SEATS: 25,      // พรรคที่เสนอชื่อนายกฯ ได้ต้องมี ส.ส. >= 5% ของสภา
-  STABLE_SEATS: 300,     // เกณฑ์ "เสียงข้างมากมั่นคง" (ปรับได้)
+  PM_MIN_SEATS: 25,
+  STABLE_SEATS: 300,
   get TOTAL() { return this.DISTRICT_SEATS + this.PARTYLIST_SEATS; },
   get MAJORITY() { return Math.floor(this.TOTAL / 2) + 1; }
 };
@@ -175,7 +205,31 @@ const REGIONS = {
   'ภาคใต้': [['ชุมพร',3],['ระนอง',1],['สุราษฎร์ธานี',7],['พังงา',1],['ภูเก็ต',3],['กระบี่',3],['นครศรีธรรมราช',10],['ตรัง',4],['พัทลุง',3],['สงขลา',9],['สตูล',2],['ปัตตานี',5],['ยะลา',3],['นราธิวาส',5]]
 };
 
-/* พรรคตั้งต้น (แก้ชื่อ/สีได้ในหน้าเว็บ) */
+/* พิกัดกลางจังหวัดโดยประมาณ [ละติจูด, ลองจิจูด] ใช้จัดวางแผนที่หกเหลี่ยม — ปรับได้ */
+const PROV_POS = {
+  'เชียงใหม่':[18.85,98.6],'เชียงราย':[19.85,99.85],'ลำปาง':[18.3,99.6],'ลำพูน':[18.1,98.95],'แม่ฮ่องสอน':[18.9,97.95],
+  'น่าน':[18.85,100.8],'พะเยา':[19.25,100.2],'แพร่':[18.15,100.15],'อุตรดิตถ์':[17.65,100.4],'ตาก':[16.85,98.75],
+  'สุโขทัย':[17.2,99.75],'พิษณุโลก':[16.95,100.5],'พิจิตร':[16.3,100.35],'กำแพงเพชร':[16.35,99.5],'เพชรบูรณ์':[16.3,101.15],
+  'นครสวรรค์':[15.7,100.1],'อุทัยธานี':[15.35,99.5],
+  'นครราชสีมา':[14.95,102.1],'บุรีรัมย์':[14.85,103.0],'สุรินทร์':[14.85,103.55],'ศรีสะเกษ':[14.85,104.3],'อุบลราชธานี':[15.2,105.0],
+  'ยโสธร':[15.8,104.3],'ชัยภูมิ':[16.0,101.9],'อำนาจเจริญ':[15.9,104.7],'บึงกาฬ':[18.2,103.7],'หนองบัวลำภู':[17.2,102.4],
+  'ขอนแก่น':[16.4,102.6],'อุดรธานี':[17.4,102.8],'เลย':[17.45,101.6],'หนองคาย':[17.85,102.7],'มหาสารคาม':[16.0,103.2],
+  'ร้อยเอ็ด':[15.95,103.75],'กาฬสินธุ์':[16.6,103.5],'สกลนคร':[17.3,103.8],'นครพนม':[17.3,104.5],'มุกดาหาร':[16.5,104.5],
+  'นนทบุรี':[13.9,100.45],'ปทุมธานี':[14.05,100.65],'สมุทรปราการ':[13.6,100.7],'สมุทรสาคร':[13.55,100.2],'นครปฐม':[13.85,100.1],
+  'พระนครศรีอยุธยา':[14.35,100.55],'อ่างทอง':[14.6,100.4],'ลพบุรี':[15.0,100.9],'สิงห์บุรี':[14.9,100.35],'ชัยนาท':[15.15,100.1],
+  'สระบุรี':[14.55,100.95],'นครนายก':[14.2,101.2],'สุพรรณบุรี':[14.6,99.9],'กรุงเทพมหานคร':[13.75,100.55],
+  'ชลบุรี':[13.3,101.15],'ระยอง':[12.75,101.35],'จันทบุรี':[12.75,102.1],'ตราด':[12.25,102.5],'ฉะเชิงเทรา':[13.65,101.3],
+  'ปราจีนบุรี':[14.05,101.5],'สระแก้ว':[13.85,102.15],
+  'กาญจนบุรี':[14.6,99.05],'ราชบุรี':[13.55,99.6],'เพชรบุรี':[12.95,99.6],'ประจวบคีรีขันธ์':[11.85,99.7],'สมุทรสงคราม':[13.4,99.95],
+  'ชุมพร':[10.4,99.1],'ระนอง':[10.0,98.65],'สุราษฎร์ธานี':[9.1,99.2],'พังงา':[8.5,98.4],'ภูเก็ต':[7.95,98.35],'กระบี่':[8.1,98.95],
+  'นครศรีธรรมราช':[8.3,99.9],'ตรัง':[7.55,99.6],'พัทลุง':[7.6,100.05],'สงขลา':[7.0,100.55],'สตูล':[6.8,100.0],
+  'ปัตตานี':[6.75,101.3],'ยะลา':[6.3,101.25],'นราธิวาส':[6.25,101.75]
+};
+const SHORT_NAME = { 'กรุงเทพมหานคร':'กรุงเทพฯ', 'พระนครศรีอยุธยา':'อยุธยา', 'ประจวบคีรีขันธ์':'ประจวบฯ', 'นครศรีธรรมราช':'นครศรีฯ', 'สุราษฎร์ธานี':'สุราษฎร์ฯ' };
+
+/* ตัวปรับรูปทรงแผนที่: k มาก = แผ่กว้างตามภูมิศาสตร์จริงมากขึ้น, pull มาก = ยึดตำแหน่งจริงมากขึ้น */
+const GEO = { k: 2.6, lon0: 97.3, lat0: 20.6, pad: 0.3, iter: 400, pull: 0.015 };
+
 const DEFAULT_PARTIES = [
   { id: 'pp',   name: 'ประชาชน',        color: '#f47933' },
   { id: 'pt',   name: 'เพื่อไทย',         color: '#e30613' },
@@ -197,14 +251,17 @@ const DISTRICTS = [];
 for (const [reg, provs] of Object.entries(REGIONS))
   for (const [prov, n] of provs)
     for (let no = 1; no <= n; no++) DISTRICTS.push({ idx: DISTRICTS.length, reg, prov, no });
+const BY_PROV = {}, BY_REG = {};
+DISTRICTS.forEach(d => { (BY_PROV[d.prov] ||= []).push(d.idx); (BY_REG[d.reg] ||= []).push(d.idx); });
 
 /* ===================== 3) State ===================== */
-let S, brush, LAST = null, TILES = [], dragging = false, curVote = -1, pending = false;
+let S, brush, LAST = null, TILES = [], dragging = false, curVote = -1, pending = false, HEX = null;
 
 const freshState = () => ({
   parties: structuredClone(DEFAULT_PARTIES),
-  d: Array(DISTRICTS.length).fill(null),   // null | {p,l} | {l:0} | {v:{partyId:votes}}
-  pl: {}, coal: [], excl: [], must: '', mode: 'rating'
+  d: Array(DISTRICTS.length).fill(null),
+  pl: {}, coal: [], excl: [], must: '', mode: 'rating',
+  view: 'geo', zoom: 100, labels: true
 });
 const validState = o => o && Array.isArray(o.parties) && Array.isArray(o.d) && o.d.length === DISTRICTS.length;
 
@@ -239,7 +296,6 @@ function shade(hex, level) {
   const [r, g, b] = rgbOf(hex);
   return `rgb(${m(r)},${m(g)},${m(b)})`;
 }
-
 function download(name, text, type) {
   const a = document.createElement('a');
   a.href = URL.createObjectURL(new Blob([text], { type }));
@@ -310,9 +366,114 @@ function findCoalitions(seats, must, maxP) {
   return { list, truncated };
 }
 
-/* ===================== 7) แผนที่ ===================== */
+/* ===================== 7) สร้างแผนที่หกเหลี่ยม ===================== */
+const SQ = Math.sqrt(3) / 2, HS = 1 / Math.sqrt(3);
+const hx = (c, r) => c + (r & 1) * 0.5, hy = r => r * SQ;
+function nb(c, r, k) {               // เพื่อนบ้าน 6 ทิศ (pointy-top, odd rows shifted)
+  const o = r & 1;
+  return [[c + 1, r], [c + o, r + 1], [c + o - 1, r + 1], [c - 1, r], [c + o - 1, r - 1], [c + o, r - 1]][k];
+}
+function corner(x, y, k) { const a = (60 * k - 30) * Math.PI / 180; return [x + HS * Math.cos(a), y + HS * Math.sin(a)]; }
+
+function buildHexLayout() {
+  // 1) แปลงพิกัดจังหวัด → ตำแหน่งบนกริด
+  const P = [];
+  for (const [reg, list] of Object.entries(REGIONS)) for (const [name, n] of list) {
+    const [lat, lon] = PROV_POS[name] || [13.75, 100.5];
+    const X = (lon - GEO.lon0) * GEO.k, Y = (GEO.lat0 - lat) * GEO.k;
+    P.push({ name, reg, n, X, Y, X0: X, Y0: Y, R: Math.sqrt(n * SQ / Math.PI) + GEO.pad, cells: [] });
+  }
+  // 2) ดันจังหวัดที่ซ้อนกันให้แยกออก (คล้าย Dorling cartogram) จังหวัดใหญ่ขยับน้อยกว่า
+  for (let it = 0; it < GEO.iter; it++) {
+    for (let a = 0; a < P.length; a++) for (let b = a + 1; b < P.length; b++) {
+      const A = P[a], B = P[b];
+      let dx = B.X - A.X, dy = B.Y - A.Y; const d = Math.hypot(dx, dy), need = A.R + B.R;
+      if (d >= need) continue;
+      const over = need - d;
+      if (d < 1e-6) { dx = Math.cos(a + b); dy = Math.sin(a + b); } else { dx /= d; dy /= d; }
+      const wa = B.n / (A.n + B.n), wb = 1 - wa;
+      A.X -= dx * over * wa; A.Y -= dy * over * wa;
+      B.X += dx * over * wb; B.Y += dy * over * wb;
+    }
+    P.forEach(p => { p.X += (p.X0 - p.X) * GEO.pull; p.Y += (p.Y0 - p.Y) * GEO.pull; });
+  }
+  const minX = Math.min(...P.map(p => p.X - p.R)) - 3, minY = Math.min(...P.map(p => p.Y - p.R)) - 3;
+  P.forEach(p => { p.X -= minX; p.Y -= minY; });
+  const W = Math.ceil(Math.max(...P.map(p => p.X + p.R)) + 4);
+  const H = Math.ceil((Math.max(...P.map(p => p.Y + p.R)) + 4) / SQ);
+
+  // 3) ทุกจังหวัดขยายพื้นที่พร้อมกันตามสัดส่วน ทีละช่องที่ใกล้จุดศูนย์กลางที่สุด
+  const occ = new Map(), key = (c, r) => c * 1000 + r;
+  const order = [];
+  P.forEach(p => { for (let j = 0; j < p.n; j++) order.push({ p, t: (j + 0.5) / p.n }); });
+  order.sort((a, b) => a.t - b.t || b.p.n - a.p.n);
+  for (const { p } of order) {
+    let best = null, bd = Infinity;
+    const consider = (c, r) => {
+      if (c < 0 || r < 0 || c >= W || r >= H || occ.has(key(c, r))) return;
+      const v = (hx(c, r) - p.X) ** 2 + (hy(r) - p.Y) ** 2;
+      if (v < bd) { bd = v; best = [c, r]; }
+    };
+    p.cells.forEach(([c, r]) => { for (let k = 0; k < 6; k++) consider(...nb(c, r, k)); });
+    if (!best) for (let r = 0; r < H; r++) for (let c = 0; c < W; c++) consider(c, r);
+    occ.set(key(...best), p); p.cells.push(best);
+  }
+
+  // 4) ผูกเขต ↔ ช่อง, วาดเส้นขอบจังหวัด/ภาค, ตำแหน่งชื่อจังหวัด
+  const pos = [], pt = ([x, y]) => `${x.toFixed(3)} ${y.toFixed(3)}`;
+  let pb = '', rb = '', x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  const labels = [];
+  P.forEach(p => {
+    let sx = 0, sy = 0;
+    p.cells.forEach(([c, r], j) => {
+      const x = hx(c, r), y = hy(r);
+      pos[BY_PROV[p.name][j]] = { x, y };
+      sx += x; sy += y;
+      x0 = Math.min(x0, x); y0 = Math.min(y0, y); x1 = Math.max(x1, x); y1 = Math.max(y1, y);
+      for (let k = 0; k < 6; k++) {
+        const o = occ.get(key(...nb(c, r, k)));
+        if (o === p) continue;
+        const seg = `M${pt(corner(x, y, k))}L${pt(corner(x, y, (k + 1) % 6))}`;
+        if (!o || o.reg !== p.reg) rb += seg; else pb += seg;
+      }
+    });
+    labels.push({ name: SHORT_NAME[p.name] || p.name, x: sx / p.cells.length, y: sy / p.cells.length });
+  });
+  const vb = [x0 - 1.2, y0 - 1.2, x1 - x0 + 2.4, y1 - y0 + 2.4];
+  return { pos, pb, rb, labels, vb, aspect: vb[2] / vb[3] };
+}
+
+/* ===================== 8) Render แผนที่ ===================== */
 function renderMap() {
-  const map = $('#map'); map.innerHTML = ''; TILES = [];
+  const map = $('#map'); TILES = [];
+  map.className = S.view;
+  document.querySelectorAll('[data-view]').forEach(b => b.classList.toggle('on', b.dataset.view === S.view));
+  $('#zoomBox').style.display = $('#labBox').style.display = S.view === 'geo' ? '' : 'none';
+  if (S.view === 'geo') renderGeo(map); else renderGrid(map);
+  TILES.forEach((_, i) => updateTile(i));
+}
+function renderGeo(map) {
+  HEX = HEX || buildHexLayout();
+  const polys = DISTRICTS.map(d => {
+    const p = HEX.pos[d.idx];
+    const pts = [0, 1, 2, 3, 4, 5].map(k => corner(p.x, p.y, k).map(v => v.toFixed(3)).join(',')).join(' ');
+    return `<polygon class="hx" data-i="${d.idx}" points="${pts}"><title></title></polygon>`;
+  }).join('');
+  const labels = S.labels ? HEX.labels.map(l => `<text class="plab" x="${l.x.toFixed(2)}" y="${(l.y + 0.2).toFixed(2)}">${esc(l.name)}</text>`).join('') : '';
+  map.innerHTML = `<div id="geoWrap"><svg xmlns="http://www.w3.org/2000/svg" viewBox="${HEX.vb.map(v => v.toFixed(2)).join(' ')}">
+    ${polys}<path class="pb" d="${HEX.pb}"/><path class="rb" d="${HEX.rb}"/>${labels}</svg></div>`;
+  map.querySelectorAll('polygon[data-i]').forEach(el => TILES[+el.dataset.i] = el);
+  applyZoom();
+}
+function applyZoom() {
+  const svg = document.querySelector('#geoWrap svg'); if (!svg || !HEX) return;
+  const z = (S.zoom || 100) / 100;
+  svg.style.height = (78 * z) + 'vh';
+  svg.style.width = (78 * z * HEX.aspect) + 'vh';
+  svg.style.maxWidth = z === 1 ? '100%' : 'none';
+}
+function renderGrid(map) {
+  map.innerHTML = '';
   for (const [reg, provs] of Object.entries(REGIONS)) {
     const box = document.createElement('div'); box.className = 'region';
     box.innerHTML = `<h3>${reg} <small>${provs.reduce((s, p) => s + p[1], 0)} เขต</small></h3><div class="provs"></div>`;
@@ -321,21 +482,27 @@ function renderMap() {
       const pv = document.createElement('div'); pv.className = 'prov' + (n > 12 ? ' big' : '');
       pv.innerHTML = `<div class="plabel" data-prov="${name}" title="คลิกเพื่อระบายทั้งจังหวัด">${name} (${n})</div><div class="tiles"></div>`;
       const tiles = pv.querySelector('.tiles');
-      DISTRICTS.filter(d => d.prov === name).forEach(d => {
-        const t = document.createElement('div'); t.className = 'tile'; t.dataset.i = d.idx; t.textContent = d.no;
-        TILES[d.idx] = t; tiles.appendChild(t);
+      BY_PROV[name].forEach(i => {
+        const t = document.createElement('div'); t.className = 'tile'; t.dataset.i = i; t.textContent = DISTRICTS[i].no;
+        TILES[i] = t; tiles.appendChild(t);
       });
       wrap.appendChild(pv);
     }
     map.appendChild(box);
   }
 }
+const tipOf = i => { const d = DISTRICTS[i]; return `${d.prov} เขต ${d.no} — ${describe(result(S.d[i]))}`; };
 function updateTile(i) {
   const t = TILES[i]; if (!t) return;
-  const d = DISTRICTS[i], r = result(S.d[i]), c = tileColor(r);
-  t.style.background = c; t.style.color = isDark(c) ? '#fff' : '#333';
-  t.classList.toggle('hasv', !!(S.d[i] && S.d[i].v));
-  t.title = `${d.prov} เขต ${d.no} — ${describe(r)}`;
+  const c = tileColor(result(S.d[i]));
+  if (t.tagName.toLowerCase() === 'polygon') {
+    t.setAttribute('fill', c);
+    t.firstElementChild.textContent = tipOf(i);
+  } else {
+    t.style.background = c; t.style.color = isDark(c) ? '#fff' : '#333';
+    t.classList.toggle('hasv', !!(S.d[i] && S.d[i].v));
+    t.title = tipOf(i);
+  }
 }
 function applyBrush(i) {
   if (brush.type === 'erase') S.d[i] = null;
@@ -343,12 +510,16 @@ function applyBrush(i) {
   else if (brush.p) S.d[i] = { p: brush.p, l: brush.l };
   updateTile(i);
 }
+function paintAt(i) {
+  if (brush.scope === 'prov') BY_PROV[DISTRICTS[i].prov].forEach(applyBrush);
+  else applyBrush(i);
+}
 
-/* ===================== 8) Toolbar ===================== */
+/* ===================== 9) Toolbar ===================== */
 function renderToolbar() {
   const tb = $('#toolbar');
   if (S.mode === 'votes') {
-    tb.innerHTML = '<div class="hint">โหมดกรอกคะแนน: คลิกเขตเพื่อกรอกคะแนนแต่ละพรรค ระบบจะหาผู้ชนะและไล่สีตามส่วนต่างให้ (ชนะขาด ≥15%, ค่อนข้างแน่ ≥7%, ต่ำกว่านั้นถือว่าเอนเอียง) เขตที่มีแถบเข้มด้านล่างคือเขตที่มีคะแนนจริง</div>';
+    tb.innerHTML = '<div class="hint">โหมดกรอกคะแนน: คลิกเขตเพื่อกรอกคะแนนแต่ละพรรค ระบบจะหาผู้ชนะและไล่สีตามส่วนต่างให้ (ชนะขาด ≥15%, ค่อนข้างแน่ ≥7%, ต่ำกว่านั้นถือว่าเอนเอียง)</div>';
     return;
   }
   const cur = partyById(brush.p);
@@ -357,10 +528,13 @@ function renderToolbar() {
      <button class="pbtn ${brush.type === 'toss' ? 'on' : ''}" data-t="toss" style="--c:#9e9e9e"><i></i>สูสี</button>
      <button class="pbtn ${brush.type === 'erase' ? 'on' : ''}" data-t="erase" style="--c:#ececec"><i></i>ยางลบ</button></div>
      <div class="row">ระดับ: ${[3, 2, 1].map(l => `<button class="lbtn ${brush.type === 'party' && brush.l === l ? 'on' : ''}" data-l="${l}"><b style="background:${cur ? shade(cur.color, l) : '#ccc'}"></b>${LEVELS[l]}</button>`).join('')}
-     <span class="hint">คลิกหรือลากเพื่อระบาย · คลิกชื่อจังหวัดเพื่อระบายทั้งจังหวัด</span></div>`;
+     <span style="margin-left:8px">ระบาย:</span>
+     <button class="lbtn ${brush.scope !== 'prov' ? 'on' : ''}" data-scope="dist">ทีละเขต</button>
+     <button class="lbtn ${brush.scope === 'prov' ? 'on' : ''}" data-scope="prov">ทั้งจังหวัด</button>
+     <span class="hint">คลิกหรือลากเมาส์เพื่อระบาย</span></div>`;
 }
 
-/* ===================== 9) สรุปผล ===================== */
+/* ===================== 10) สรุปผล ===================== */
 function hemicycle(groups, big, small) {
   const total = groups.reduce((s, g) => s + g.n, 0); if (!total) return '';
   const rows = 12, r0 = 0.38, r1 = 1;
@@ -379,7 +553,17 @@ function hemicycle(groups, big, small) {
     <text x="0" y="-0.12" text-anchor="middle" font-size="0.16" font-weight="700" fill="#111">${big}</text>
     <text x="0" y="-0.02" text-anchor="middle" font-size="0.07" fill="#555">${small}</text></svg>`;
 }
-
+function renderRegionBars() {
+  $('#regionBars').innerHTML = Object.keys(REGIONS).map(reg => {
+    const ids = BY_REG[reg], cnt = {}; let und = 0;
+    ids.forEach(i => { const r = result(S.d[i]); if (r && r.p) cnt[r.p] = (cnt[r.p] || 0) + 1; else und++; });
+    const parts = S.parties.filter(p => cnt[p.id]).sort((a, b) => cnt[b.id] - cnt[a.id]);
+    const lead = parts[0] ? `นำ: ${esc(parts[0].name)} ${cnt[parts[0].id]}` : 'ยังไม่มีผล';
+    return `<div class="rrow"><div><b>${reg}</b> <span class="hint">(${ids.length} เขต)</span><br><span class="hint">${lead}</span></div>
+      <div class="rbar">${parts.map(p => `<div style="width:${cnt[p.id] / ids.length * 100}%;background:${p.color}" title="${esc(p.name)} ${cnt[p.id]} เขต"></div>`).join('')}
+      ${und ? `<div style="width:${und / ids.length * 100}%;background:#d1d5db" title="ยังไม่ตัดสิน ${und}"></div>` : ''}</div></div>`;
+  }).join('');
+}
 function updateSummary() {
   const R = LAST = compute();
   const rows = S.parties.map(p => ({ p, d: R.dist[p.id] || 0, l: R.pl[p.id] || 0, t: R.total[p.id] }))
@@ -409,10 +593,11 @@ function updateSummary() {
   const coalSum = coal.reduce((s, id) => s + R.total[id], 0);
   $('#hemi').innerHTML = hemicycle(groups, coal.length ? coalSum : CONFIG.TOTAL, coal.length ? 'เสียงฝ่ายรัฐบาล' : 'ที่นั่งทั้งหมด');
 
+  renderRegionBars();
   renderCoalition(R);
 }
 
-/* ===================== 10) จัดตั้งรัฐบาล ===================== */
+/* ===================== 11) จัดตั้งรัฐบาล ===================== */
 function renderCoalition(R) {
   S.coal = S.coal.filter(id => partyById(id));
   S.excl = S.excl.filter(id => partyById(id));
@@ -442,7 +627,7 @@ function renderCoalition(R) {
   $('#mustSel').innerHTML = '<option value="">— ไม่กำหนด —</option>' + list.map(p => `<option value="${p.id}" ${S.must === p.id ? 'selected' : ''}>${esc(p.name)} (${R.total[p.id]})</option>`).join('');
 }
 
-/* ===================== 11) บัญชีรายชื่อ & ตั้งค่าพรรค ===================== */
+/* ===================== 12) บัญชีรายชื่อ & ตั้งค่าพรรค ===================== */
 function renderPL() {
   $('#plTable').innerHTML = `<tr><th>พรรค</th><th>คะแนน / %</th><th class="num">%</th><th class="num">ที่นั่ง</th></tr>`
     + S.parties.map(p => `<tr><td><span class="dot" style="background:${p.color}"></span>${esc(p.name)}</td>
@@ -456,7 +641,7 @@ function renderPartyEditor() {
     <button data-pdel="${p.id}" title="ลบพรรค">✕</button></div>`).join('');
 }
 
-/* ===================== 12) กรอกคะแนนรายเขต ===================== */
+/* ===================== 13) กรอกคะแนนรายเขต ===================== */
 function openVote(i) {
   curVote = i;
   const d = DISTRICTS[i], v = (S.d[i] && S.d[i].v) || {};
@@ -473,14 +658,14 @@ function readVoteInputs() {
 }
 function updateVoteInfo() { const v = readVoteInputs(); $('#voteInfo').textContent = Object.keys(v).length ? 'ผล: ' + describe(result({ v })) : 'ยังไม่มีคะแนน'; }
 
-/* ===================== 13) CSV ===================== */
+/* ===================== 14) CSV ===================== */
 function importCSV(text) {
   const lines = text.replace(/^\uFEFF/, '').split(/\r?\n/).map(l => l.trim()).filter(Boolean);
   const idx = {}; DISTRICTS.forEach(d => idx[d.prov + '|' + d.no] = d.idx);
   const touched = new Set(); let ok = 0, bad = 0;
   lines.forEach((line, n) => {
     const c = line.split(',').map(s => s.trim().replace(/^"|"$/g, ''));
-    if (n === 0 && isNaN(Number(c[1]))) return; // ข้ามหัวตาราง
+    if (n === 0 && isNaN(Number(c[1]))) return;
     const i = idx[c[0] + '|' + Number(c[1])], votes = Number(c[3] || 0);
     if (i === undefined || !c[2] || isNaN(votes)) { bad++; return; }
     let p = S.parties.find(x => x.name === c[2] || x.id === c[2]);
@@ -499,53 +684,66 @@ function exportCSV() {
   download('election-votes.csv', '\uFEFF' + rows.join('\n'), 'text/csv;charset=utf-8');
 }
 
-/* ===================== 14) Render ทั้งหมด & บันทึก ===================== */
+/* ===================== 15) Render ทั้งหมด & บันทึก ===================== */
 function changed() {
   if (pending) return; pending = true;
   requestAnimationFrame(() => { pending = false; updateSummary(); try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} });
 }
 function renderAll() {
-  if (!brush || (brush.type === 'party' && !partyById(brush.p))) brush = { type: 'party', p: S.parties[0] && S.parties[0].id, l: (brush && brush.l) || 3 };
+  if (!brush || (brush.type === 'party' && !partyById(brush.p)))
+    brush = { type: 'party', p: S.parties[0] && S.parties[0].id, l: (brush && brush.l) || 3, scope: (brush && brush.scope) || 'dist' };
   document.querySelectorAll('[data-mode]').forEach(b => b.classList.toggle('on', b.dataset.mode === S.mode));
-  renderToolbar(); renderPL(); renderPartyEditor();
-  TILES.forEach((_, i) => updateTile(i));
+  $('#zoom').value = S.zoom; $('#labels').checked = S.labels;
+  renderToolbar(); renderPL(); renderPartyEditor(); renderMap();
   changed();
 }
 function randomFill() {
   if (!confirm('แทนที่ข้อมูลเขตและบัญชีรายชื่อด้วยข้อมูลสุ่มเพื่อทดลอง?')) return;
   const n = S.parties.length; if (!n) return;
-  const w = S.parties.map((_, i) => Math.pow(0.68, i)).sort(() => Math.random() - 0.5); // สุ่มลำดับเพื่อความเป็นกลาง
+  const w = S.parties.map((_, i) => Math.pow(0.68, i)).sort(() => Math.random() - 0.5);
+  // ให้แต่ละภาคมีพรรคที่ได้เปรียบต่างกัน เพื่อให้เห็นภาพฐานเสียงบนแผนที่
+  const regBoost = {}; Object.keys(REGIONS).forEach(r => regBoost[r] = Math.floor(Math.random() * n));
+  const pick = reg => {
+    const ww = w.map((x, i) => i === regBoost[reg] ? x * 3 : x), tw = ww.reduce((a, b) => a + b, 0);
+    let r = Math.random() * tw; for (let i = 0; i < n; i++) { r -= ww[i]; if (r <= 0) return S.parties[i].id; } return S.parties[n - 1].id;
+  };
+  S.d = DISTRICTS.map(d => Math.random() < 0.05 ? { l: 0 } : { p: pick(d.reg), l: 1 + Math.floor(Math.random() * 3) });
   const tw = w.reduce((a, b) => a + b, 0);
-  const pick = () => { let r = Math.random() * tw; for (let i = 0; i < n; i++) { r -= w[i]; if (r <= 0) return S.parties[i].id; } return S.parties[n - 1].id; };
-  S.d = S.d.map(() => Math.random() < 0.05 ? { l: 0 } : { p: pick(), l: 1 + Math.floor(Math.random() * 3) });
   S.pl = {}; S.parties.forEach((p, i) => S.pl[p.id] = Math.round(w[i] / tw * 37000000 * (0.7 + Math.random() * 0.6)));
   renderAll();
 }
 
-/* ===================== 15) Events ===================== */
+/* ===================== 16) Events ===================== */
 function bindEvents() {
   const map = $('#map');
   map.addEventListener('click', e => {
-    const t = e.target.closest('.tile');
-    if (t) { const i = +t.dataset.i; if (S.mode === 'votes') openVote(i); else { applyBrush(i); changed(); } return; }
+    const t = e.target.closest('[data-i]');
+    if (t) { const i = +t.dataset.i; if (S.mode === 'votes') openVote(i); else { paintAt(i); changed(); } return; }
     const l = e.target.closest('.plabel');
-    if (l && S.mode === 'rating') { DISTRICTS.filter(d => d.prov === l.dataset.prov).forEach(d => applyBrush(d.idx)); changed(); }
+    if (l && S.mode === 'rating') { BY_PROV[l.dataset.prov].forEach(applyBrush); changed(); }
   });
   map.addEventListener('pointerdown', e => {
     if (e.pointerType !== 'mouse' || S.mode !== 'rating') return;
-    const t = e.target.closest('.tile'); if (t) { dragging = true; applyBrush(+t.dataset.i); changed(); e.preventDefault(); }
+    const t = e.target.closest('[data-i]'); if (t) { dragging = true; paintAt(+t.dataset.i); changed(); e.preventDefault(); }
   });
   map.addEventListener('pointerover', e => {
-    if (!dragging || e.buttons !== 1) return;
-    const t = e.target.closest('.tile'); if (t) { applyBrush(+t.dataset.i); changed(); }
+    const t = e.target.closest('[data-i]'); if (!t) return;
+    const i = +t.dataset.i;
+    if (dragging && e.buttons === 1) { paintAt(i); changed(); }
+    $('#hoverInfo').textContent = tipOf(i);
   });
   window.addEventListener('pointerup', () => dragging = false);
 
+  document.querySelectorAll('[data-view]').forEach(b => b.onclick = () => { S.view = b.dataset.view; renderMap(); changed(); });
+  $('#zoom').oninput = e => { S.zoom = +e.target.value; applyZoom(); changed(); };
+  $('#labels').onchange = e => { S.labels = e.target.checked; renderMap(); changed(); };
+
   $('#toolbar').addEventListener('click', e => {
     const b = e.target.closest('button'); if (!b) return;
-    if (b.dataset.p) brush = { type: 'party', p: b.dataset.p, l: brush.l };
+    if (b.dataset.p) brush = { ...brush, type: 'party', p: b.dataset.p };
     else if (b.dataset.t) brush = { ...brush, type: b.dataset.t };
     else if (b.dataset.l) brush = { ...brush, type: 'party', l: +b.dataset.l };
+    else if (b.dataset.scope) brush = { ...brush, scope: b.dataset.scope };
     renderToolbar();
   });
 
@@ -631,9 +829,8 @@ function bindEvents() {
   $('#btnReset').onclick = () => { if (confirm('ล้างข้อมูลทั้งหมดและกลับไปค่าเริ่มต้น?')) { S = freshState(); renderAll(); } };
 }
 
-/* ===================== 16) เริ่มต้น ===================== */
+/* ===================== 17) เริ่มต้น ===================== */
 S = loadState();
-renderMap();
 bindEvents();
 renderAll();
 if (DISTRICTS.length !== CONFIG.DISTRICT_SEATS) {
